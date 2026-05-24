@@ -13,3 +13,6 @@ Rplots.pdf
 
 # Local tooling state (oh-my-claudecode)
 .omc/
+
+# Generated example output (re-created by the example scripts)
+skills/ggnetview/examples/figures/
