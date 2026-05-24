@@ -1,0 +1,19 @@
+{
+  "name": "ggnetview-marketplace",
+  "owner": {
+    "name": "Yue Liu",
+    "email": "yueliu@iae.ac.cn"
+  },
+  "description": "Marketplace for the ggNetView skills plugin.",
+  "plugins": [
+    {
+      "name": "ggnetview-skills",
+      "source": "./",
+      "description": "Skills for the ggNetView R package: code generation, API reference, workflows, and troubleshooting.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Yue Liu"
+      }
+    }
+  ]
+}

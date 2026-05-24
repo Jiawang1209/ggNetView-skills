@@ -1,0 +1,15 @@
+# Build inputs / reference material — NOT part of the distributed plugin.
+# The R package source and the bookdown manual are kept locally under sources/
+# only so the skill can be distilled and later updated. They each have their own
+# git repository and are version-controlled elsewhere.
+sources/
+
+# OS / editor clutter
+.DS_Store
+.Rproj.user/
+.Rhistory
+.RData
+Rplots.pdf
+
+# Local tooling state (oh-my-claudecode)
+.omc/
