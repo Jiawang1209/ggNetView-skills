@@ -1,7 +1,7 @@
 {
   "name": "ggnetview-skills",
   "description": "Skills for the ggNetView R package: writing correct network-visualization code, API reference, analysis workflows, and troubleshooting.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": {
     "name": "Yue Liu",
     "email": "yueliu@iae.ac.cn"

@@ -10,7 +10,7 @@
       "name": "ggnetview-skills",
       "source": "./",
       "description": "Skills for the ggNetView R package: code generation, API reference, workflows, and troubleshooting.",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "author": {
         "name": "Yue Liu"
       }
