@@ -13,7 +13,7 @@ copy names from here rather than guessing.
 `build_graph_from_double_mat`, `build_graph_from_double_mat_with_module`,
 `build_graph_from_igraph`, `build_graph_from_wgcna`, `build_graph_from_consensus`,
 `build_graph_from_multi_mat`, `build_graph_from_pie`, `build_graph_from_enrichGO`,
-`build_graph_from_stringdb`
+`build_graph_from_stringdb`, `build_graph_from_node_edge`
 
 **Plotting (`ggNetView*` / `gg*`):**
 `ggNetView` (main entry point), `ggNetView_RMT` (RMT threshold scan),
@@ -211,6 +211,105 @@ NOT recompute communities — it uses the supplied WGCNA module colours as `Modu
 ### export_ggnetview
 ```r
 export_ggnetview(plot, filename, width = 8, height = 8, ...)   # save a ggNetView ggplot
+```
+
+### ggnetview_zipi
+Zi-Pi keystone-role classification. Takes a **node table + adjacency matrix**, NOT
+a graph. `modularity_col` / `degree_col` are required (positional).
+```r
+ggnetview_zipi(
+  nodes_bulk,            # data.frame from get_graph_nodes(); IDs in rownames or a `name` col
+  z_bulk_mat,            # adjacency/correlation matrix from get_graph_adjacency()
+  modularity_col,        # e.g. "Modularity"
+  degree_col,            # e.g. "Degree"
+  zi_threshold = 2.5,
+  pi_threshold = 0.62,
+  na.rm = FALSE
+)
+```
+Returns list: `$data` (nodes + `within_module_connectivities`,
+`among_module_connectivities`, `type`) and `$plot` (Zi-Pi quadrant ggplot).
+Roles: module hubs / connectors / network hubs / peripherals.
+
+(`get_node_centrality` / `get_node_ivi` signatures are above; both return an
+augmented `tbl_graph` — assign the result. `get_node_ivi` needs the Suggests-only
+`influential` package; use `scale = "z-scale"` for cross-network comparison.)
+
+### Mantel + heatmap link figure
+`gglink_heatmaps()` is the user-facing "Mantel/correlation + heatmap" plotter; the
+`mantel_*` functions are the raw stats it wraps. `env`/`spec` are **samples × variables**
+data frames with **matching row order**.
+```r
+gglink_heatmaps(
+  env, spec,
+  env_select,                      # named list; ONE heatmap quadrant per element
+  spec_select,                     # named list; ONE central network per element
+  relation_method = c("correlation","mantel"),
+  mantel_kind = c("block_vs_col","col_vs_col"),  # block_vs_col = ecological standard
+  spec_dist_method = "bray", env_dist_method = "euclidean",
+  spec_collapse = FALSE, drop_nonsig = FALSE,
+  comparisons = TRUE, comparisons_groups = NULL,  # restrict (env_block, spec_block) pairs
+  link_color_by = "Correlation", link_width_by = "-log10(Pvalue)", SigLineMid = NULL,
+  orientation = c("top_right","bottom_right","top_left","bottom_left"),
+  group_layout = "circle", ...    # many styling args — see the package man page
+)
+```
+Returns a **list of 3**: `[[1]]` straight-link ggplot, `[[2]]` curved-link ggplot,
+`[[3]]` stats data.frame (`ID, Type, Correlation, Pvalue, p_signif, spec_block,
+env_block, method`). `length(env_select)` must equal `length(orientation)`.
+`ggnetview_modularity_heatmaps()` is the modularity-based sibling with the same
+Mantel API. Raw helpers:
+```r
+mantel_block_vs_col(spec_df, env_df, block_name = "block",
+  method = "pearson", spec_dist_method = "bray", env_dist_method = "euclidean",
+  permutations = 999L)                       # → ID, Type, Correlation, Pvalue
+mantel_pairwise(spec_df, env_df, method = "pearson", ...)        # col-vs-col variant
+mantel_between_blocks(spec, env, spec_select, env_select, test_type = "mantel", ...)
+```
+
+### build_graph_from_double_mat / _with_module / multi_mat
+Cross-correlate matrices into one (multipartite) graph. All matrices: **variables in
+ROWS, the SAME samples in COLUMNS**. No `r/p` threshold — every cross-correlation
+becomes an edge (degree-0 nodes dropped); pre-filter dense inputs.
+```r
+build_graph_from_double_mat(mat1, mat2,
+  module.method = "Fast_greedy", node_annotation = NULL,
+  directed = FALSE, top_modules = 15, seed = 1115)   # Modularity = community detection
+
+build_graph_from_double_mat_with_module(mat1, mat2,
+  node_annotation,            # REQUIRED: first col = node ID, plus a `Modularity` column
+  directed = FALSE, top_modules = 15, seed = 1115)   # Modularity = your supplied labels
+
+build_graph_from_multi_mat(mat1, mat2, ...,          # 3+ matrices
+  module.method = "Fast_greedy", node_annotation = NULL,
+  directed = FALSE, top_modules = 15, seed = 1115)
+```
+For a clean bipartite/tripartite split by omics, the layout splits on `Modularity`
+and needs **exactly 2 / 3 levels** — use the `_with_module` variant with a 2-level
+`Modularity`, then `ggNetView(layout = "bipartite_gephi_layout", layout.module = "order")`.
+
+### build_graph_from_node_edge
+Two-table interface; the `node` table is authoritative (isolated nodes are kept,
+unlike `build_graph_from_df`).
+```r
+build_graph_from_node_edge(node, edge,   # node: col1 = ID; edge: first 2 cols = from,to
+  directed = FALSE, module.method = "Fast_greedy", top_modules = 15, seed = 1115)
+```
+
+### get_subgraph / get_sample_subgraph / get_sample_subgraph_topology
+```r
+get_subgraph(graph_obj, select_module = NULL)   # select_module: character vector of module names
+# → list: $sub_graph_all (per-module list), $sub_graph_select (selected modules), $stat_module
+
+get_sample_subgraph(graph_obj, mat, min_abundance = 0,
+  select_sample = NULL, combine = c("union","intersect"))
+# present = mat[OTU, sample] > min_abundance (0 for counts, ~0.001 for relative abundance)
+# → list: $sub_graph_all (per-sample), $stat_sample, $sub_graph_select (merged selected)
+
+get_sample_subgraph_topology(graph_obj, mat = NULL, transfrom.method = "none",
+  r.threshold = 0.7, p.threshold = 0.05, method = "WGCNA", cor.method = "pearson",
+  proc = "bonferroni", bootstrap = 100)   # pass the SAME analysis args used to build graph_obj
+# → list: $subgraph_list, $topology, $Robustness, $sample_stat
 ```
 
 ## Spelling quirks preserved from source (do not "fix")

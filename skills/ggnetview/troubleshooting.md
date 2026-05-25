@@ -15,6 +15,12 @@ the actual replacements:
 | `wgcna_network()` | `build_graph_from_mat(method="WGCNA")` / `build_graph_from_wgcna()` |
 | `create_layout_stress(g)` | `ggNetView(g, layout = "stress")` |
 | `color_by = "module"` | `fill.by = "Modularity"` / `group.by = "Modularity"` |
+| `net_zipi()`, `zi_pi()`, `plot_zipi()` | `ggnetview_zipi(nodes, adj, "Modularity", "Degree")` |
+| `net_centrality()`, `net_hub()`, `node_importance()` | `get_node_centrality()`, `get_node_ivi()` |
+| `ggNet_mantel()`, `mantel_test()`, `ggcor()` | `gglink_heatmaps(relation_method = "mantel")`, `mantel_block_vs_col()` |
+| `ggNetCorr()`, `ggNetBuild()`, `cross_correlate()` | `build_graph_from_double_mat()` / `build_graph_from_multi_mat()` |
+| `layout = "bipartite"`, `"tripartite"` | `layout = "bipartite_gephi_layout"` / `"tripartite_gephi_layout"` |
+| `subNetwork()`, `induced_subgraph()`, `netTopology()` | `get_subgraph()`, `get_sample_subgraph()`, `get_sample_subgraph_topology()` |
 
 ## Common errors and fixes
 
@@ -68,6 +74,49 @@ Group names are case-sensitive and `order` must enumerate **all** unique groups 
 
 **`could not find function "get_node_ivi"` works but errors internally**
 `get_node_ivi()` requires the Suggests-only `influential` package — install it.
+
+**`ggnetview_zipi()` errors on a graph object / missing `modularity_col`**
+It is not a graph plotter. Pass the **node table** and the **adjacency matrix**:
+`ggnetview_zipi(get_graph_nodes(g), get_graph_adjacency(g), "Modularity", "Degree")`.
+`modularity_col` and `degree_col` are required positional args. Read roles from
+`$data$type`; the figure is `$plot`.
+
+**Centrality columns disappear after `get_node_centrality()`**
+It returns a NEW augmented `tbl_graph` — assign it: `g <- get_node_centrality(g)`.
+Same for `get_node_ivi()` (adds an `IVI` column).
+
+**`gglink_heatmaps()` "result is not a ggplot" / can't `+ theme()`**
+It returns a **list of 3**: `out[[1]]` straight links, `out[[2]]` curved links,
+`out[[3]]` the stats data.frame. Add ggplot layers to `out[[1]]`/`out[[2]]`, not `out`.
+Also: `env`/`spec` must share row order, and `length(env_select)` must equal
+`length(orientation)`. For the ecological Mantel use `mantel_kind = "block_vs_col"`.
+
+**Bipartite/tripartite layout error: "requires at least/exactly 2/3 modules in `Modularity`"**
+These layouts split on the `Modularity` column. `build_graph_from_double_mat()` fills
+`Modularity` from community detection (any number of groups). For a clean omics split,
+use `build_graph_from_double_mat_with_module()` with a `node_annotation` whose first
+column is the node ID and which has a `Modularity` column of exactly 2 (bipartite) or
+3 (tripartite) levels; then `ggNetView(layout = "bipartite_gephi_layout",
+layout.module = "order")`.
+
+**Multi-omics network is hopelessly dense**
+`build_graph_from_double_mat()` has no `r.threshold`/`p.threshold` — it keeps every
+cross-correlation as an edge. Pre-filter `mat1`/`mat2` (e.g. top-variance or abundant
+features) before building.
+
+**`$ operator is invalid` / wrong object after `get_subgraph` or `get_sample_subgraph`**
+Both return lists. The extracted graph is `$sub_graph_select`; per-module/per-sample
+graphs are in `$sub_graph_all`; summaries are `$stat_module` / `$stat_sample`.
+
+**`get_subgraph()` errors: `'names' attribute [N] must be the same length as the vector [M]`**
+`get_subgraph()` expects every level of the `Modularity` factor to be populated. The
+builders always append an `"Others"` level, which is filled only when the network has
+**more** modules than `top_modules` (the usual case — then `get_subgraph()` just works).
+If the network has **≤ `top_modules`** modules, `"Others"` stays empty and the level
+count no longer matches the populated groups. Fix from your side — drop the unused
+level before calling (works for any module count):
+`graph_obj <- graph_obj %>% tidygraph::activate("nodes") %>% tidygraph::mutate(Modularity = droplevels(Modularity))`
+— or set `top_modules` below the actual module count.
 
 ## When unsure
 
